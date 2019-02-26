@@ -1,3 +1,5 @@
+// credit: https://www.codementor.io/codehakase/building-a-restful-api-with-golang-a6yivzqdo
+
 package main
 
 import (
@@ -75,7 +77,7 @@ func main() {
 	router.HandleFunc("/people/{id}", DeletePerson).Methods("DELETE")
 	port := os.Getenv("GO_SERVER_PORT")
 	if len(port) == 0 {
-		port = "8080"
+		port = "8085"
 	}
 	port = ":" + port
 	fmt.Println("Listening On ", port)
