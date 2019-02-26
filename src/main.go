@@ -1,4 +1,5 @@
 // credit: https://www.codementor.io/codehakase/building-a-restful-api-with-golang-a6yivzqdo
+// https://github.com/gorilla/mux
 
 package main
 
@@ -8,81 +9,81 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
 
-// The person Type (more like an object)
-type Person struct {
-	ID        string   `json:"id,omitempty"`
-	Firstname string   `json:"firstname,omitempty"`
-	Lastname  string   `json:"lastname,omitempty"`
-	Address   *Address `json:"address,omitempty"`
-}
-
-type Address struct {
-	City  string `json:"city,omitempty"`
-	State string `json:"state,omitempty"`
-}
-
-var people []Person
-
-// Display all from the people var
-func GetPeople(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(people)
-}
-
-// Display a single data
-func GetPerson(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	for _, item := range people {
-		if item.ID == params["id"] {
-			json.NewEncoder(w).Encode(item)
-			return
-		}
-	}
-	json.NewEncoder(w).Encode(&Person{})
-}
-
-// create a new item
-func CreatePerson(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	var person Person
-	_ = json.NewDecoder(r.Body).Decode(&person)
-	person.ID = params["id"]
-	people = append(people, person)
-	json.NewEncoder(w).Encode(people)
-}
-
-// Delete an item
-func DeletePerson(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	for index, item := range people {
-		if item.ID == params["id"] {
-			people = append(people[:index], people[index+1:]...)
-			break
-		}
-		json.NewEncoder(w).Encode(people)
-	}
-}
-
 // main function to boot up everything
 func main() {
 	router := mux.NewRouter()
-	people = append(people, Person{ID: "1", Firstname: "John", Lastname: "Doe", Address: &Address{City: "City X", State: "State X"}})
-	people = append(people, Person{ID: "2", Firstname: "Koko", Lastname: "Doe", Address: &Address{City: "City Z", State: "State Y"}})
-	router.HandleFunc("/people", GetPeople).Methods("GET")
-	router.HandleFunc("/people/{id}", GetPerson).Methods("GET")
-	router.HandleFunc("/people/{id}", CreatePerson).Methods("POST")
-	router.HandleFunc("/people/{id}", DeletePerson).Methods("DELETE")
+	router.HandleFunc("/json", getJsonResults).Methods("GET")
+	router.HandleFunc("/json/{a:[0-9]+}/{b:[a-zA-Z]+}", getJsonResult).Methods("GET")
+
+	// swagger like
+	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		pathTemplate, err := route.GetPathTemplate()
+		if err == nil {
+			fmt.Println("ROUTE:", pathTemplate)
+		}
+		pathRegexp, err := route.GetPathRegexp()
+		if err == nil {
+			fmt.Println("Path regexp:", pathRegexp)
+		}
+		queriesTemplates, err := route.GetQueriesTemplates()
+		if err == nil {
+			fmt.Println("Queries templates:", strings.Join(queriesTemplates, ","))
+		}
+		queriesRegexps, err := route.GetQueriesRegexp()
+		if err == nil {
+			fmt.Println("Queries regexps:", strings.Join(queriesRegexps, ","))
+		}
+		methods, err := route.GetMethods()
+		if err == nil {
+			fmt.Println("Methods:", strings.Join(methods, ","))
+		}
+		fmt.Println()
+		return nil
+	})
+
+	if err != nil {
+		fmt.Println(err)
+	}
+	port := getPort()
+
+	fmt.Println("Listening On ", port)
+	log.Fatal(http.ListenAndServe(port, router))
+}
+
+type AB struct {
+	A int    `json:"a,omitempty"`
+	B string `json:"b,omitempty"`
+}
+
+// Display all from the people var
+func getJsonResults(w http.ResponseWriter, r *http.Request) {
+	results := []AB{
+		AB{A: 1, B: "B1"},
+		AB{A: 2, B: "B2"},
+		AB{A: 3, B: "B3"},
+	}
+	json.NewEncoder(w).Encode(results)
+}
+
+// Display all from the people var
+func getJsonResult(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	a, _ := strconv.Atoi(vars["a"])
+	result := AB{A: a, B: vars["b"]}
+	json.NewEncoder(w).Encode(result)
+}
+
+func getPort() string {
 	port := os.Getenv("GO_SERVER_PORT")
 	if len(port) == 0 {
 		port = "8085"
 	}
 	port = ":" + port
-	fmt.Println("Listening On ", port)
-	fmt.Println(`Valid routes:
-	/people
-	/people/{id}`)
-	log.Fatal(http.ListenAndServe(port, router))
+	return port
 }
