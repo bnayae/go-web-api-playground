@@ -18,11 +18,50 @@ import (
 // main function to boot up everything
 func main() {
 	router := mux.NewRouter()
+
+	router.StrictSlash(false)
+	router.Use(loggingMiddleware)
+
 	router.HandleFunc("/json", getJsonResults).Methods("GET")
 	router.HandleFunc("/json/{a:[0-9]+}/{b:[a-zA-Z]+}", getJsonResult).Methods("GET")
+	router.HandleFunc("/echo/{*}", echo).Methods("GET") //.Queries("count")
 
+	subRoute := router.PathPrefix("/api").Subrouter()
+	subRoute.HandleFunc("/json", getJsonResults).Methods("GET")
+	subRoute.HandleFunc("/json/{a:[0-9]+}/{b:[a-zA-Z]+}", getJsonResult).Methods("GET")
+
+	router.PathPrefix("/").Handler(catchAllHandler())
+
+	port := getPort()
+
+	metaReader(router)
+	fmt.Println("Listening On ", port)
+	log.Fatal(http.ListenAndServe(port, router))
+}
+
+func catchAllHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Anything:", r.RequestURI)
+		fmt.Fprintf(w, "Other\nQuery %v\nPath %v", r.URL.Query(), mux.Vars(r))
+	})
+}
+
+// middleware
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Host)
+		log.Println(r.RequestURI)
+		log.Println(r.URL.Query())
+		log.Println(mux.Vars(r))
+
+		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		next.ServeHTTP(w, r)
+	})
+}
+
+func metaReader(r *mux.Router) {
 	// swagger like
-	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	err := r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		pathTemplate, err := route.GetPathTemplate()
 		if err == nil {
 			fmt.Println("ROUTE:", pathTemplate)
@@ -50,10 +89,6 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	port := getPort()
-
-	fmt.Println("Listening On ", port)
-	log.Fatal(http.ListenAndServe(port, router))
 }
 
 type AB struct {
@@ -63,12 +98,20 @@ type AB struct {
 
 // Display all from the people var
 func getJsonResults(w http.ResponseWriter, r *http.Request) {
+
 	results := []AB{
 		AB{A: 1, B: "B1"},
 		AB{A: 2, B: "B2"},
 		AB{A: 3, B: "B3"},
 	}
 	json.NewEncoder(w).Encode(results)
+}
+
+// Display all from the people var
+func echo(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Count: %v\nPath %v\n", r.URL.Query()["count"], vars)
 }
 
 // Display all from the people var
