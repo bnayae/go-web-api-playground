@@ -30,7 +30,7 @@ func main() {
 	subRoute.HandleFunc("/json", getJsonResults).Methods("GET")
 	subRoute.HandleFunc("/json/{a:[0-9]+}/{b:[a-zA-Z]+}", getJsonResult).Methods("GET")
 
-	router.PathPrefix("/").Handler(catchAllHandler())
+	router.PathPrefix("/").Handler(handleAll())
 
 	port := getPort()
 
@@ -39,10 +39,10 @@ func main() {
 	log.Fatal(http.ListenAndServe(port, router))
 }
 
-func catchAllHandler() http.Handler {
+func handleAll() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Anything:", r.RequestURI)
-		fmt.Fprintf(w, "Other\nQuery %v\nPath %v", r.URL.Query(), mux.Vars(r))
+		fmt.Fprintf(w, "Other\nQuery %v\nPath %v", r.URL.Query(), r.RequestURI)
 	})
 }
 

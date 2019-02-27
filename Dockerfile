@@ -5,10 +5,10 @@ RUN go get github.com/gorilla/mux
 
 # Create app directory
 WORKDIR /usr/go/server
-Copy ./src/ .
+COPY ./src/ .
 # Expose the application on port 8080
 EXPOSE 80
 
-Run ls
+RUN ls
 
 CMD ["go", "run", "main.go"]
